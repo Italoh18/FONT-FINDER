@@ -2,44 +2,50 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { HistoryItem, HistoryListProps } from '../types';
 import { Trash2, Search, Edit2, Check, X, Upload, FileType, Database } from 'lucide-react';
 
-// Componente interno para carregar e renderizar a fonte local
+// Componente para carregar e renderizar a fonte local visualmente
 const LocalFontPreview: React.FC<{ fontName: string; fileContent?: string; text?: string }> = ({ fontName, fileContent, text = "Aa" }) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (!fileContent || !fontName) return;
 
-    const fontId = `preview-${fontName.replace(/\s+/g, '-')}-${Date.now()}`; // Unique-ish ID
-    
-    // Verifica se a fonte já está disponível no documento
-    if (document.fonts.check(`12px "${fontName}"`)) {
+    // Nome único para evitar colisão no registro do navegador
+    const uniqueFontName = `preview-${fontName.replace(/\s+/g, '')}`;
+
+    // Verifica se a fonte já está disponível
+    if (document.fonts.check(`12px "${uniqueFontName}"`)) {
       setIsLoaded(true);
       return;
     }
 
-    // Tenta carregar a fonte
     const loadFont = async () => {
       try {
-        const fontFace = new FontFace(fontName, `url(${fileContent})`);
+        const fontFace = new FontFace(uniqueFontName, `url(${fileContent})`);
         const loadedFace = await fontFace.load();
         document.fonts.add(loadedFace);
         setIsLoaded(true);
       } catch (err) {
-        console.error(`Erro ao carregar preview da fonte ${fontName}:`, err);
+        console.error(`Erro ao renderizar preview da fonte ${fontName}:`, err);
+        setHasError(true);
       }
     };
 
     loadFont();
   }, [fontName, fileContent]);
 
+  if (hasError) {
+     return <FileType className="w-6 h-6 text-purple-400" />;
+  }
+
   if (!isLoaded) {
-    return <FileType className="w-6 h-6 text-purple-400" />;
+    return <div className="w-6 h-6 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />;
   }
 
   return (
     <span 
-      className="text-2xl text-purple-200"
-      style={{ fontFamily: `"${fontName}", sans-serif` }}
+      className="text-2xl text-purple-200 leading-none select-none"
+      style={{ fontFamily: `preview-${fontName.replace(/\s+/g, '')}, sans-serif` }}
     >
       {text}
     </span>
@@ -83,7 +89,6 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDelete, onS
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       onUploadFonts(e.target.files);
-      // Reset input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -100,7 +105,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDelete, onS
         <div className="flex gap-2">
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors font-medium shadow-lg shadow-blue-900/20"
+            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors font-medium shadow-lg shadow-blue-900/20 hover:scale-[1.02]"
           >
             <Upload className="w-4 h-4" />
             Upload Fontes
@@ -147,7 +152,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDelete, onS
               `}
               onClick={() => onSelect(item)}
             >
-              {/* Thumbnail or Icon */}
+              {/* Thumbnail or Generated Preview */}
               <div className={`w-12 h-12 shrink-0 rounded-lg overflow-hidden border flex items-center justify-center
                 ${item.isUploaded ? 'bg-purple-900/20 border-purple-700/30' : 'bg-slate-900 border-slate-700'}
               `}>
@@ -198,7 +203,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDelete, onS
                 <div className="flex items-center gap-2">
                   {item.isUploaded && (
                     <span className="text-[10px] uppercase font-bold text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded">
-                      Arquivo
+                      Local
                     </span>
                   )}
                   <p className="text-xs text-slate-400">{item.category}</p>

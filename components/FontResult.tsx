@@ -2,15 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { ExternalLink, Save, CheckCircle, Type, Info, BarChart3, ArrowRight, Download, Maximize2, X, FileDown, Globe, Database } from 'lucide-react';
 import { FontResultProps } from '../types';
 
-// Componente auxiliar para carregar e exibir o preview da fonte (Google ou Local)
+// Componente auxiliar para carregar e exibir o preview da fonte
 const FontPreviewItem: React.FC<{ 
   fontName: string; 
   previewText: string;
+  category?: string; // Adicionado categoria para fallback inteligente
   selectable?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
-  customFontData?: string; // Dados Base64 da fonte local (opcional)
-}> = ({ fontName, previewText, selectable, isSelected, onToggleSelect, customFontData }) => {
+  customFontData?: string; 
+}> = ({ fontName, previewText, category, selectable, isSelected, onToggleSelect, customFontData }) => {
   const [loadError, setLoadError] = useState(false);
   const [isCustomLoaded, setIsCustomLoaded] = useState(false);
   
@@ -20,14 +21,13 @@ const FontPreviewItem: React.FC<{
   useEffect(() => {
     if (!fontName) return;
 
-    // Se tiver dados customizados (Local), usa FontFace API
     if (customFontData) {
-      if (document.fonts.check(`12px "${fontName}"`)) {
+      const uniqueName = `res-${fontName.replace(/\s+/g, '')}`;
+      if (document.fonts.check(`12px "${uniqueName}"`)) {
         setIsCustomLoaded(true);
         return;
       }
-
-      const fontFace = new FontFace(fontName, `url(${customFontData})`);
+      const fontFace = new FontFace(uniqueName, `url(${customFontData})`);
       fontFace.load().then(loadedFace => {
         document.fonts.add(loadedFace);
         setIsCustomLoaded(true);
@@ -38,7 +38,7 @@ const FontPreviewItem: React.FC<{
       return;
     }
 
-    // Se não, tenta Google Fonts
+    // Google Fonts Loader
     const cleanName = fontName.replace(/\s+/g, '+');
     const href = `https://fonts.googleapis.com/css2?family=${cleanName}&text=${encodeURIComponent(safeTextForUrl)}&display=swap`;
     
@@ -46,6 +46,7 @@ const FontPreviewItem: React.FC<{
     link.href = href;
     link.rel = 'stylesheet';
     
+    // Se falhar o carregamento (ex: fonte comercial não está no Google Fonts), marca erro
     link.onerror = () => setLoadError(true);
     
     document.head.appendChild(link);
@@ -65,9 +66,19 @@ const FontPreviewItem: React.FC<{
     }
   };
 
+  // Lógica de Fallback Inteligente baseada na Categoria
+  const getFallbackFont = () => {
+    if (!category) return 'sans-serif';
+    const cat = category.toLowerCase();
+    if (cat.includes('serif') && !cat.includes('sans')) return 'serif';
+    if (cat.includes('script') || cat.includes('hand') || cat.includes('brush') || cat.includes('cali')) return 'cursive';
+    if (cat.includes('mono')) return 'monospace';
+    return 'sans-serif';
+  };
+
   const fontFamilyStyle = customFontData 
-    ? (isCustomLoaded ? `"${fontName}", sans-serif` : 'sans-serif')
-    : (loadError ? 'sans-serif' : `"${fontName}", sans-serif`);
+    ? (isCustomLoaded ? `res-${fontName.replace(/\s+/g, '')}, sans-serif` : getFallbackFont())
+    : (loadError ? getFallbackFont() : `"${fontName}", ${getFallbackFont()}`);
 
   return (
     <div className={`
@@ -89,7 +100,11 @@ const FontPreviewItem: React.FC<{
       )}
 
       {/* Visual Preview Box */}
-      <div className="w-auto min-w-[4rem] h-16 px-4 shrink-0 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-slate-600 shadow-sm">
+      <div className="w-auto min-w-[4rem] h-16 px-4 shrink-0 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-slate-600 shadow-sm relative">
+        {/* Indicador de Fallback se a fonte falhar */}
+        {loadError && !customFontData && (
+           <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-yellow-400" title="Visualização aproximada (Fonte não carregada)" />
+        )}
         <span 
           className="text-2xl text-slate-900 whitespace-nowrap"
           style={{ fontFamily: fontFamilyStyle }}
@@ -99,11 +114,15 @@ const FontPreviewItem: React.FC<{
       </div>
 
       <div className="flex-1 min-w-0 pr-6">
-        <h4 className={`font-bold text-lg truncate mb-2 ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
-          {fontName}
-        </h4>
+        <div className="flex items-center gap-2 mb-1">
+           <h4 className={`font-bold text-lg truncate ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
+            {fontName}
+          </h4>
+          {loadError && !customFontData && (
+             <span className="text-[10px] text-slate-500 border border-slate-600 px-1 rounded">Genérico</span>
+          )}
+        </div>
         
-        {/* Links */}
         <div className="flex flex-wrap gap-2">
           {!customFontData && (
             <>
@@ -112,7 +131,6 @@ const FontPreviewItem: React.FC<{
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-xs bg-slate-800 hover:bg-blue-600 text-slate-400 hover:text-white px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-slate-600"
-                title="Buscar no DaFont"
               >
                 DaFont <ExternalLink className="w-3 h-3" />
               </a>
@@ -121,7 +139,6 @@ const FontPreviewItem: React.FC<{
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-xs bg-slate-800 hover:bg-blue-600 text-slate-400 hover:text-white px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-slate-600"
-                title="Buscar no Google Fonts"
               >
                 Google <ExternalLink className="w-3 h-3" />
               </a>
@@ -132,7 +149,6 @@ const FontPreviewItem: React.FC<{
             target="_blank" 
             rel="noopener noreferrer"
             className="text-xs bg-slate-800 hover:bg-green-600 text-slate-400 hover:text-white px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-slate-600"
-            title="Pesquisar download no Google"
           >
             Download <Download className="w-3 h-3" />
           </a>
@@ -149,14 +165,14 @@ const ComparisonModal: React.FC<{
   fonts: string[];
   previewText: string;
   originalImage: string | null;
-  mainFontData?: { name: string, data: string }; // Dados da fonte principal local se existir
-}> = ({ isOpen, onClose, fonts, previewText, originalImage, mainFontData }) => {
+  category?: string;
+  mainFontData?: { name: string, data: string };
+}> = ({ isOpen, onClose, fonts, previewText, originalImage, category, mainFontData }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl max-h-[90vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
             <Maximize2 className="w-5 h-5 text-blue-400" />
@@ -167,10 +183,7 @@ const ComparisonModal: React.FC<{
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          
-          {/* Imagem Original */}
           {originalImage && (
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Referência Original</label>
@@ -180,10 +193,8 @@ const ComparisonModal: React.FC<{
             </div>
           )}
 
-          {/* Lista de Comparação */}
           <div className="grid grid-cols-1 gap-6">
             {fonts.map((font, idx) => {
-              // Verifica se essa fonte da lista de comparação é a mesma da fonte principal (Local)
               const isMainLocalFont = mainFontData && mainFontData.name === font;
               const customData = isMainLocalFont ? mainFontData.data : undefined;
 
@@ -196,6 +207,7 @@ const ComparisonModal: React.FC<{
                     <FontPreviewItem 
                       fontName={font} 
                       previewText={previewText} 
+                      category={category}
                       customFontData={customData}
                     />
                   </div>
@@ -212,11 +224,26 @@ const ComparisonModal: React.FC<{
 export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, onSave, isSaved, downloadData }) => {
   const [selectedFonts, setSelectedFonts] = useState<string[]>([]);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [isMainFontLoaded, setIsMainFontLoaded] = useState(false);
 
-  // Reset selection when analysis changes
   useEffect(() => {
     setSelectedFonts([]);
   }, [analysis]);
+
+  useEffect(() => {
+    if (downloadData && analysis?.fontName) {
+       const uniqueName = `title-${analysis.fontName.replace(/\s+/g, '')}`;
+       if (document.fonts.check(`12px "${uniqueName}"`)) {
+         setIsMainFontLoaded(true);
+         return;
+       }
+       const fontFace = new FontFace(uniqueName, `url(${downloadData.fileContent})`);
+       fontFace.load().then(loaded => {
+         document.fonts.add(loaded);
+         setIsMainFontLoaded(true);
+       }).catch(e => console.error("Error loading title font", e));
+    }
+  }, [downloadData, analysis]);
 
   if (!analysis) return null;
 
@@ -307,10 +334,12 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
                 </span>
               </div>
               <h2 className="text-3xl font-bold text-white mb-1 flex items-center gap-2">
-                {/* Se for local, exibe um preview maior, senão ícone */}
                 {downloadData ? (
-                  <div className="h-10 px-3 bg-white rounded flex items-center justify-center border border-purple-500/50">
-                    <span style={{ fontFamily: `"${analysis.fontName}", sans-serif` }} className="text-slate-900 text-xl whitespace-nowrap">
+                  <div className="h-12 px-4 bg-white rounded-lg flex items-center justify-center border border-purple-500/50 shadow-inner">
+                    <span 
+                        style={{ fontFamily: isMainFontLoaded ? `title-${analysis.fontName.replace(/\s+/g, '')}, sans-serif` : 'sans-serif' }} 
+                        className="text-slate-900 text-2xl whitespace-nowrap"
+                    >
                        {analysis.fontName}
                     </span>
                   </div>
@@ -338,7 +367,6 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
             </button>
           </div>
 
-          {/* Seção Especial de Download Direto se disponível */}
           {downloadData && (
              <div className="mb-6 p-4 bg-purple-600/10 border border-purple-600/30 rounded-xl flex items-center justify-between animate-pulse-once">
                 <div>
@@ -355,7 +383,6 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
              </div>
           )}
 
-          {/* Links de busca na web - Relevante mesmo se for local para comparar */}
           <div className="mb-6 p-4 bg-blue-600/10 border border-blue-600/20 rounded-xl">
                <h4 className="text-sm font-semibold text-blue-200 mb-2">
                  {analysis.source === 'Local' ? `Comparar "${analysis.fontName}" na Web:` : `Buscar "${analysis.fontName}" na Web:`}
@@ -386,13 +413,12 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
             </p>
           </div>
 
-          {/* Seção de Fontes Similares com Seleção */}
           {analysis.similarFonts && analysis.similarFonts.length > 0 && (
               <div className="border-t border-slate-700 pt-6 mt-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         <ArrowRight className="w-5 h-5 text-purple-400" />
-                        Alternativas Similares
+                        Alternativas Similares (Google Fonts)
                     </h3>
                     <span className="text-xs text-slate-500">
                       Selecione até 3 para comparar
@@ -400,13 +426,12 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
                   </div>
                   
                   <div className="flex flex-col gap-3">
-                      {/* Se a fonte principal (local) for adicionada à lista de comparação, ela deve usar o customFontData */}
-                      {/* Caso contrário, renderiza as similares do Google Fonts */}
                       {analysis.similarFonts.map((font, idx) => (
                           <FontPreviewItem 
                             key={idx} 
                             fontName={font} 
                             previewText={previewText}
+                            category={analysis.category}
                             selectable={true}
                             isSelected={selectedFonts.includes(font)}
                             onToggleSelect={() => handleToggleFont(font)}
@@ -417,7 +442,6 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
           )}
         </div>
 
-        {/* Floating Action Button para Comparar */}
         {selectedFonts.length > 0 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 md:absolute md:bottom-6 md:left-1/2 md:-translate-x-1/2 z-50 animate-bounce-in">
             <button 
@@ -437,6 +461,7 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
         fonts={selectedFonts}
         previewText={previewText}
         originalImage={currentImage}
+        category={analysis.category}
         mainFontData={downloadData ? { name: analysis.fontName, data: downloadData.fileContent } : undefined}
       />
     </>

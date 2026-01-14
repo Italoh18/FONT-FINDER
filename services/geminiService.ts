@@ -17,57 +17,55 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
     throw new Error("API Key is missing. Please check your environment configuration.");
   }
 
-  // Upgrade para gemini-3-pro-preview para maior capacidade de raciocínio visual e precisão
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-  // Remove header if present (e.g., "data:image/jpeg;base64,")
   const base64Data = base64Image.split(',')[1] || base64Image;
 
-  // Instrução de sistema para definir a persona de especialista sênior
+  // Instrução de sistema focada em neutralidade e precisão
   const systemInstruction = `
-    Você é um Tipógrafo Sênior e Engenheiro de Fontes com vasta experiência em anatomia tipográfica.
-    Sua missão é identificar fontes com precisão cirúrgica, analisando micro-detalhes como terminais, serifa, eixo, contraste e altura-x.
-    Nunca responda que uma fonte "não foi encontrada". Sempre encontre a correspondência mais próxima possível.
+    Você é um Tipógrafo Forense imparcial.
+    Sua prioridade absoluta é a precisão visual.
+    NUNCA force uma correspondência com a biblioteca local se a fonte não for VISUALMENTE IDÊNTICA.
+    É melhor sugerir uma fonte da Web correta do que uma fonte Local errada.
   `;
 
+  // Prompt estruturado para eliminar viés de confirmação
   const prompt = `
-    Realize uma análise forense da tipografia nesta imagem.
+    Analise a imagem e identifique a fonte.
 
-    CONTEXTO LOCAL (Arquivos do Usuário): ${knownFonts.length > 0 ? JSON.stringify(knownFonts) : "Nenhum."}
+    LISTA DE VERIFICAÇÃO (Fontes enviadas pelo usuário): ${knownFonts.length > 0 ? JSON.stringify(knownFonts) : "Nenhuma."}
 
-    PROTOCOLO DE IDENTIFICAÇÃO:
+    PROTOCOLO DE ANÁLISE RIGOROSO:
+    1.  Esqueça a lista de verificação inicialmente. Olhe APENAS para a imagem.
+    2.  Identifique as características: Serifas, contraste, eixo, "a" minúsculo, "g" minúsculo.
+    3.  AGORA, compare com a "LISTA DE VERIFICAÇÃO":
+        - A fonte da imagem é EXATAMENTE igual a alguma da lista? (Considere espessura, terminais, estilo).
+        - Se a imagem for "Arial" e a lista tiver "Times New Roman", NÃO É MATCH. Ignore a lista.
+        - Se a imagem for "Brush Script" e a lista tiver "Abnes" (que é brush), elas são IDÊNTICAS nos detalhes? Se não, ignore a lista.
 
-    1. ANÁLISE VISUAL PROFUNDA:
-       - Observe os terminais (arredondados, quadrados, angulares?).
-       - Analise o "a" minúsculo (binocular ou monocular?) e o "g" (binocular ou monocular?).
-       - Verifique o contraste (diferença entre traços finos e grossos).
-       - Identifique o estilo histórico (Humanista, Geométrica, Grotesca, Didone, Slab, etc.).
+    4.  SELEÇÃO:
+        - Se houver match visual exato (>98%) na lista local: Use o nome da lista e source="Local".
+        - Caso contrário: Identifique a fonte real (Web/Comercial) e source="Web".
 
-    2. VERIFICAÇÃO CRUZADA LOCAL:
-       - Compare as características visuais extraídas com os nomes na lista de "CONTEXTO LOCAL".
-       - Se houver uma correspondência visual PROVÁVEL com um nome da lista (ex: imagem parece Helvetica e lista tem "Helvetica-Bold"), SELECIONE A FONTE LOCAL.
-       - Defina "source": "Local".
+    5.  FONTES SIMILARES (Crucial para visualização):
+        - Liste 4 fontes alternativas que sejam visualmente parecidas.
+        - **IMPORTANTE:** Estas fontes similares DEVEM estar disponíveis no **GOOGLE FONTS** para que o preview funcione na interface.
 
-    3. BUSCA GLOBAL (Se não houver match local):
-       - Busque no seu vasto conhecimento a fonte comercial ou gratuita (Google Fonts) que melhor corresponde aos detalhes anatômicos observados.
-       - Defina "source": "Web".
-
-    SAÍDA ESPERADA (JSON Puro):
+    Retorne JSON:
     {
-      "detectedText": "Texto exato da imagem (max 15 chars)",
-      "fontName": "Nome Preciso da Família Tipográfica",
+      "detectedText": "Texto da imagem (max 15 chars)",
+      "fontName": "Nome da Fonte Identificada (Seja honesto, não force a local)",
       "source": "Local" ou "Web",
-      "category": "Classificação Técnica (ex: Sans-Serif Geométrica)",
-      "visualStyle": "Descrição técnica detalhada dos traços e personalidade da fonte.",
+      "category": "Serif" | "Sans Serif" | "Display" | "Handwriting" | "Monospace",
+      "visualStyle": "Descrição técnica (ex: 'Pincelada orgânica com textura seca')",
       "matchConfidence": "Alta" | "Média" | "Baixa",
-      "description": "Justificativa técnica explicando por que esta fonte é o match perfeito, citando detalhes específicos (ex: 'O terminal aberto do 'e' e a cauda curvada do 'R' são característicos desta fonte').",
-      "similarFonts": ["Alternativa 1", "Alternativa 2", "Alternativa 3", "Alternativa 4"]
+      "description": "Explique a decisão. Se rejeitou a lista local, diga o porquê (ex: 'A fonte da imagem tem serifas, enquanto as locais não têm').",
+      "similarFonts": ["Google Font 1", "Google Font 2", "Google Font 3"]
     }
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           {
@@ -83,7 +81,7 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
       },
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.2 // Temperatura baixa para respostas mais determinísticas e precisas
+        temperature: 0.2 // Temperatura muito baixa para reduzir alucinações
       }
     });
 
@@ -103,12 +101,12 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
     }
 
     return {
-      fontName: parsedData.fontName || "Fonte Similar",
-      detectedText: parsedData.detectedText || "Preview",
-      category: parsedData.category || "Geral",
+      fontName: parsedData.fontName || "Fonte Desconhecida",
+      detectedText: parsedData.detectedText || "Aa",
+      category: parsedData.category || "Display",
       visualStyle: parsedData.visualStyle || "",
       matchConfidence: parsedData.matchConfidence || "Baixa",
-      description: parsedData.description || "Sem descrição disponível.",
+      description: parsedData.description || "Análise concluída.",
       similarFonts: Array.isArray(parsedData.similarFonts) ? parsedData.similarFonts : [],
       source: parsedData.source === 'Local' ? 'Local' : 'Web'
     };
