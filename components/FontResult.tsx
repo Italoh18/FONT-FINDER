@@ -6,7 +6,7 @@ import { FontResultProps } from '../types';
 const FontPreviewItem: React.FC<{ 
   fontName: string; 
   previewText: string;
-  category?: string; // Adicionado categoria para fallback inteligente
+  category?: string;
   selectable?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
@@ -16,12 +16,14 @@ const FontPreviewItem: React.FC<{
   const [isCustomLoaded, setIsCustomLoaded] = useState(false);
   
   const displayText = previewText.length > 15 ? previewText.substring(0, 12) + '...' : previewText;
+  // Para a URL do Google Fonts, usamos um texto seguro e curto se o original for muito longo/complexo
   const safeTextForUrl = previewText.length > 20 ? 'Preview' : previewText;
 
   useEffect(() => {
     if (!fontName) return;
 
     if (customFontData) {
+      // Carregamento de fonte local via FontFace API
       const uniqueName = `res-${fontName.replace(/\s+/g, '')}`;
       if (document.fonts.check(`12px "${uniqueName}"`)) {
         setIsCustomLoaded(true);
@@ -38,7 +40,7 @@ const FontPreviewItem: React.FC<{
       return;
     }
 
-    // Google Fonts Loader
+    // Carregamento via Google Fonts
     const cleanName = fontName.replace(/\s+/g, '+');
     const href = `https://fonts.googleapis.com/css2?family=${cleanName}&text=${encodeURIComponent(safeTextForUrl)}&display=swap`;
     
@@ -46,7 +48,6 @@ const FontPreviewItem: React.FC<{
     link.href = href;
     link.rel = 'stylesheet';
     
-    // Se falhar o carregamento (ex: fonte comercial não está no Google Fonts), marca erro
     link.onerror = () => setLoadError(true);
     
     document.head.appendChild(link);
@@ -66,12 +67,11 @@ const FontPreviewItem: React.FC<{
     }
   };
 
-  // Lógica de Fallback Inteligente baseada na Categoria
   const getFallbackFont = () => {
     if (!category) return 'sans-serif';
     const cat = category.toLowerCase();
     if (cat.includes('serif') && !cat.includes('sans')) return 'serif';
-    if (cat.includes('script') || cat.includes('hand') || cat.includes('brush') || cat.includes('cali')) return 'cursive';
+    if (cat.includes('script') || cat.includes('hand') || cat.includes('brush')) return 'cursive';
     if (cat.includes('mono')) return 'monospace';
     return 'sans-serif';
   };
@@ -100,13 +100,12 @@ const FontPreviewItem: React.FC<{
       )}
 
       {/* Visual Preview Box */}
-      <div className="w-auto min-w-[4rem] h-16 px-4 shrink-0 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-slate-600 shadow-sm relative">
-        {/* Indicador de Fallback se a fonte falhar */}
+      <div className="w-24 h-16 shrink-0 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-slate-600 shadow-sm relative">
         {loadError && !customFontData && (
-           <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-yellow-400" title="Visualização aproximada (Fonte não carregada)" />
+           <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-yellow-400" title="Preview aproximado" />
         )}
         <span 
-          className="text-2xl text-slate-900 whitespace-nowrap"
+          className="text-2xl text-slate-900 whitespace-nowrap px-2"
           style={{ fontFamily: fontFamilyStyle }}
         >
           {displayText}
@@ -118,39 +117,26 @@ const FontPreviewItem: React.FC<{
            <h4 className={`font-bold text-lg truncate ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
             {fontName}
           </h4>
-          {loadError && !customFontData && (
-             <span className="text-[10px] text-slate-500 border border-slate-600 px-1 rounded">Genérico</span>
-          )}
         </div>
         
         <div className="flex flex-wrap gap-2">
           {!customFontData && (
-            <>
-              <a 
-                href={getSearchUrl(fontName, 'dafont')} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs bg-slate-800 hover:bg-blue-600 text-slate-400 hover:text-white px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-slate-600"
-              >
-                DaFont <ExternalLink className="w-3 h-3" />
-              </a>
-              <a 
-                href={getSearchUrl(fontName, 'google')} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs bg-slate-800 hover:bg-blue-600 text-slate-400 hover:text-white px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-slate-600"
-              >
-                Google <ExternalLink className="w-3 h-3" />
-              </a>
-            </>
+            <a 
+              href={getSearchUrl(fontName, 'google')} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs bg-slate-800 hover:bg-blue-600 text-slate-400 hover:text-white px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-slate-600"
+            >
+              Google Fonts <ExternalLink className="w-3 h-3" />
+            </a>
           )}
           <a 
-            href={getSearchUrl(fontName, 'download')} 
+            href={getSearchUrl(fontName, 'dafont')} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-xs bg-slate-800 hover:bg-green-600 text-slate-400 hover:text-white px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-slate-600"
+            className="text-xs bg-slate-800 hover:bg-slate-600 text-slate-400 hover:text-white px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-slate-600"
           >
-            Download <Download className="w-3 h-3" />
+            DaFont
           </a>
         </div>
       </div>
@@ -158,7 +144,7 @@ const FontPreviewItem: React.FC<{
   );
 };
 
-// Modal de Comparação
+// ... ComparisonModal permanece o mesmo ...
 const ComparisonModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -259,7 +245,7 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
       if (prev.includes(fontName)) {
         return prev.filter(f => f !== fontName);
       }
-      if (prev.length >= 3) return prev; // Max 3
+      if (prev.length >= 3) return prev; 
       return [...prev, fontName];
     });
   };
@@ -301,14 +287,6 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
         className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
       >
         Google Fonts <ExternalLink className="w-3 h-3" />
-      </a>
-       <a 
-        href={getSearchUrl(fontName, 'download')} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="text-xs bg-slate-700 hover:bg-green-600 text-slate-300 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
-      >
-        Download <Download className="w-3 h-3" />
       </a>
     </div>
   );
@@ -413,17 +391,18 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
             </p>
           </div>
 
+          {/* Section of Similar Fonts */}
           {analysis.similarFonts && analysis.similarFonts.length > 0 && (
               <div className="border-t border-slate-700 pt-6 mt-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         <ArrowRight className="w-5 h-5 text-purple-400" />
-                        Alternativas Similares (Google Fonts)
+                        Alternativas Visuais (Google Fonts)
                     </h3>
-                    <span className="text-xs text-slate-500">
-                      Selecione até 3 para comparar
-                    </span>
                   </div>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Estas fontes são visualmente similares e podem ser usadas gratuitamente via Google Fonts.
+                  </p>
                   
                   <div className="flex flex-col gap-3">
                       {analysis.similarFonts.map((font, idx) => (
@@ -438,6 +417,12 @@ export const FontResult: React.FC<FontResultProps> = ({ analysis, currentImage, 
                           />
                       ))}
                   </div>
+                  
+                  {selectedFonts.length > 0 && (
+                     <p className="text-center text-xs text-blue-400 mt-2 animate-pulse">
+                        Clique em "Comparar" para ver lado a lado com a original
+                     </p>
+                  )}
               </div>
           )}
         </div>

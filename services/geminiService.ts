@@ -20,46 +20,46 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const base64Data = base64Image.split(',')[1] || base64Image;
 
-  // Instrução de sistema focada em neutralidade e precisão
   const systemInstruction = `
-    Você é um Tipógrafo Forense imparcial.
-    Sua prioridade absoluta é a precisão visual.
-    NUNCA force uma correspondência com a biblioteca local se a fonte não for VISUALMENTE IDÊNTICA.
-    É melhor sugerir uma fonte da Web correta do que uma fonte Local errada.
+    Você é um especialista em Tipografia Digital e Forense.
+    Sua missão é identificar a fonte exata de uma imagem.
+    Você é extremamente cético. Você NÃO adivinha. Você compara evidências visuais.
   `;
 
-  // Prompt estruturado para eliminar viés de confirmação
+  // Prompt desenhado para quebrar o viés de confirmação da lista local
   const prompt = `
-    Analise a imagem e identifique a fonte.
+    Analise a imagem anexada.
 
-    LISTA DE VERIFICAÇÃO (Fontes enviadas pelo usuário): ${knownFonts.length > 0 ? JSON.stringify(knownFonts) : "Nenhuma."}
+    CONTEXTO (Arquivos do Usuário): ${knownFonts.length > 0 ? JSON.stringify(knownFonts) : "Nenhum arquivo enviado."}
 
-    PROTOCOLO DE ANÁLISE RIGOROSO:
-    1.  Esqueça a lista de verificação inicialmente. Olhe APENAS para a imagem.
-    2.  Identifique as características: Serifas, contraste, eixo, "a" minúsculo, "g" minúsculo.
-    3.  AGORA, compare com a "LISTA DE VERIFICAÇÃO":
-        - A fonte da imagem é EXATAMENTE igual a alguma da lista? (Considere espessura, terminais, estilo).
-        - Se a imagem for "Arial" e a lista tiver "Times New Roman", NÃO É MATCH. Ignore a lista.
-        - Se a imagem for "Brush Script" e a lista tiver "Abnes" (que é brush), elas são IDÊNTICAS nos detalhes? Se não, ignore a lista.
+    PASSO 1: ANÁLISE VISUAL PURA
+    - Extraia o texto visível.
+    - Identifique traços chave: Serifa, altura-x, contraste, estilo (Script, Sans, etc).
 
-    4.  SELEÇÃO:
-        - Se houver match visual exato (>98%) na lista local: Use o nome da lista e source="Local".
-        - Caso contrário: Identifique a fonte real (Web/Comercial) e source="Web".
+    PASSO 2: AUDITORIA DA LISTA LOCAL
+    - Para cada fonte listada em "CONTEXTO", pergunte: "Esta fonte é IDÊNTICA à da imagem?"
+    - CUIDADO: Se a imagem é "Script" e o usuário tem uma fonte "Script" na lista, NÃO assuma que são a mesma.
+    - Verifique glifos específicos. Se o 'g' ou 'a' ou 'r' for diferente, REJEITE a fonte local.
+    - Se a fonte local for rejeitada, ignore-a completamente.
 
-    5.  FONTES SIMILARES (Crucial para visualização):
-        - Liste 4 fontes alternativas que sejam visualmente parecidas.
-        - **IMPORTANTE:** Estas fontes similares DEVEM estar disponíveis no **GOOGLE FONTS** para que o preview funcione na interface.
+    PASSO 3: IDENTIFICAÇÃO FINAL
+    - Se houve um match local perfeito (100% idêntico): Retorne o nome local e source="Local".
+    - Se NÃO houve: Identifique a melhor correspondência no mercado global (Google Fonts, Adobe, etc) e defina source="Web".
 
-    Retorne JSON:
+    PASSO 4: ALTERNATIVAS VISUAIS (Obrigatório)
+    - Liste 4 fontes SIMILARES que existam no **Google Fonts**.
+    - Isso é crucial para que o usuário possa visualizar a comparação na interface.
+
+    FORMATO JSON:
     {
-      "detectedText": "Texto da imagem (max 15 chars)",
-      "fontName": "Nome da Fonte Identificada (Seja honesto, não force a local)",
+      "detectedText": "Texto da imagem",
+      "fontName": "Nome da Fonte Identificada",
       "source": "Local" ou "Web",
       "category": "Serif" | "Sans Serif" | "Display" | "Handwriting" | "Monospace",
-      "visualStyle": "Descrição técnica (ex: 'Pincelada orgânica com textura seca')",
+      "visualStyle": "Ex: 'Traço orgânico de pincel seco, alto contraste'",
       "matchConfidence": "Alta" | "Média" | "Baixa",
-      "description": "Explique a decisão. Se rejeitou a lista local, diga o porquê (ex: 'A fonte da imagem tem serifas, enquanto as locais não têm').",
-      "similarFonts": ["Google Font 1", "Google Font 2", "Google Font 3"]
+      "description": "Explicação detalhada. Se rejeitou fontes locais, explique a diferença visual encontrada.",
+      "similarFonts": ["Google Font 1", "Google Font 2", "Google Font 3", "Google Font 4"]
     }
   `;
 
@@ -81,7 +81,7 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
       },
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.2 // Temperatura muito baixa para reduzir alucinações
+        temperature: 0.1, // Temperatura mínima para máxima precisão e menor alucinação
       }
     });
 
