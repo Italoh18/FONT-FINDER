@@ -6,6 +6,10 @@
     <title>FontFinder AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      // Shim para garantir que process.env não quebre o app se não for injetado pelo bundler
+      window.process = window.process || { env: {} };
+    </script>
     <style>
       body {
         font-family: 'Inter', sans-serif;

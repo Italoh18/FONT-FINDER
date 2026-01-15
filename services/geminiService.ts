@@ -12,38 +12,45 @@ const cleanJsonString = (str: string): string => {
 };
 
 export const identifyFontFromImage = async (base64Image: string, knownFonts: string[] = []): Promise<FontAnalysis> => {
-  // Inicializa a IA usando a chave de ambiente padrão
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Obtém a chave do ambiente. No Cloudflare/Vercel, ela deve ser injetada como API_KEY.
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    throw new Error("API_KEY_MISSING");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const base64Data = base64Image.split(',')[1] || base64Image;
 
   const systemInstruction = `
-    Você é um especialista em Tipografia Digital.
-    Sua missão é identificar a fonte de uma imagem.
-    Analise a imagem e compare com as fontes locais se houver contexto.
+    Você é um especialista em Tipografia e Design Gráfico.
+    Sua tarefa é analisar imagens e identificar com precisão a fonte utilizada ou sugerir a alternativa mais próxima no Google Fonts.
+    Analise características como peso, serifa, inclinação e proporções.
   `;
 
   const prompt = `
-    Analise a imagem anexada.
-    CONTEXTO (Fontes do Usuário): ${knownFonts.length > 0 ? JSON.stringify(knownFonts) : "Nenhum arquivo enviado."}
+    Analise a imagem anexada para identificar a fonte.
+    CONTEXTO DE FONTES LOCAIS DO USUÁRIO: ${knownFonts.length > 0 ? JSON.stringify(knownFonts) : "Nenhuma fonte local carregada."}
     
-    Identifique a fonte e sugira 4 similares do Google Fonts.
+    Se a fonte na imagem for EXATAMENTE uma das fontes locais, retorne source="Local".
+    Caso contrário, identifique a fonte comercial/web e sugira 4 alternativas gratuitas do Google Fonts.
     
-    RETORNE APENAS JSON NO FORMATO:
+    RETORNE APENAS UM OBJETO JSON VÁLIDO:
     {
-      "detectedText": "Texto extraído",
-      "fontName": "Nome da Fonte",
+      "detectedText": "Texto que você leu na imagem",
+      "fontName": "Nome da Fonte Identificada",
       "source": "Local" ou "Web",
       "category": "Serif" | "Sans Serif" | "Display" | "Handwriting" | "Monospace",
-      "visualStyle": "Descrição breve",
+      "visualStyle": "Descrição curta do estilo (ex: Bold Geometric, High Contrast)",
       "matchConfidence": "Alta" | "Média" | "Baixa",
-      "description": "Explicação técnica",
+      "description": "Explicação técnica rápida do porquê desta identificação",
       "similarFonts": ["Fonte 1", "Fonte 2", "Fonte 3", "Fonte 4"]
     }
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
@@ -58,7 +65,7 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
     });
 
     const textResponse = response.text;
-    if (!textResponse) throw new Error("Resposta vazia da IA.");
+    if (!textResponse) throw new Error("A IA não retornou texto.");
 
     const parsedData = JSON.parse(cleanJsonString(textResponse));
 
@@ -75,6 +82,9 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error(error.message || "Erro ao conectar com a IA. Verifique sua API Key.");
+    if (error.message?.includes("API_KEY_MISSING")) {
+        throw error;
+    }
+    throw new Error(error.message || "Erro de conexão com o servidor Gemini.");
   }
 };

@@ -4,7 +4,7 @@ import { FontResult } from './components/FontResult';
 import { HistoryList } from './components/HistoryList';
 import { identifyFontFromImage } from './services/geminiService';
 import { FontAnalysis, HistoryItem } from './types';
-import { Sparkles, Github, AlertCircle } from 'lucide-react';
+import { Sparkles, Github, AlertCircle, Terminal } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'fontfinder_history';
 
@@ -17,7 +17,6 @@ export default function App() {
   const [isSaved, setIsSaved] = useState(false);
   const [currentDownloadData, setCurrentDownloadData] = useState<{fileName: string, fileContent: string} | undefined>(undefined);
 
-  // Carrega histórico do localStorage
   useEffect(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (saved) {
@@ -63,7 +62,11 @@ export default function App() {
 
       setAnalysis(result);
     } catch (err: any) {
-      setError(err.message || "Erro ao analisar imagem.");
+      if (err.message === "API_KEY_MISSING") {
+        setError("Chave de API não configurada corretamente. Vá no painel da Cloudflare > Settings > Variables, adicione 'API_KEY' e realize um novo Deploy.");
+      } else {
+        setError(err.message || "Erro ao analisar imagem.");
+      }
     } finally {
       setLoading(false);
     }
@@ -200,9 +203,25 @@ export default function App() {
               <ImageUpload onImageSelected={handleImageSelected} isLoading={loading} />
 
               {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-200 text-center flex items-center justify-center gap-2">
-                    <AlertCircle className="w-5 h-5" />
-                    <p>{error}</p>
+                <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-100 shadow-lg space-y-4">
+                    <div className="flex items-center gap-3 text-red-400 font-bold">
+                      <AlertCircle className="w-6 h-6 shrink-0" />
+                      <span className="text-lg">Erro de Configuração</span>
+                    </div>
+                    <p className="text-sm leading-relaxed">{error}</p>
+                    {error.includes("API_KEY") && (
+                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                         <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
+                           <Terminal className="w-4 h-4" /> Cloudflare Pages Setup
+                         </div>
+                         <ol className="text-xs text-slate-400 list-decimal pl-4 space-y-1">
+                           <li>Acesse seu projeto no Cloudflare Pages.</li>
+                           <li>Vá em <strong>Settings</strong> > <strong>Environment variables</strong>.</li>
+                           <li>Clique em <strong>Add variable</strong>: Key = <code>API_KEY</code>, Value = <code>(sua chave)</code>.</li>
+                           <li><strong>Importante:</strong> Realize um novo <strong>Deploy</strong> para que as alterações entrem em vigor.</li>
+                         </ol>
+                      </div>
+                    )}
                 </div>
               )}
 
