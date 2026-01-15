@@ -1,7 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { FontAnalysis } from "../types";
 
-// Helper to clean JSON string if the model wraps it in markdown
 const cleanJsonString = (str: string): string => {
   let cleaned = str.trim();
   if (cleaned.startsWith('```json')) {
@@ -13,95 +12,58 @@ const cleanJsonString = (str: string): string => {
 };
 
 export const identifyFontFromImage = async (base64Image: string, knownFonts: string[] = []): Promise<FontAnalysis> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key is missing. Please check your environment configuration.");
-  }
-
+  // Inicializa a IA usando a chave de ambiente padrão
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const base64Data = base64Image.split(',')[1] || base64Image;
 
   const systemInstruction = `
-    Você é um especialista em Tipografia Digital e Forense.
-    Sua missão é identificar a fonte exata de uma imagem.
-    Você é extremamente cético. Você NÃO adivinha. Você compara evidências visuais.
+    Você é um especialista em Tipografia Digital.
+    Sua missão é identificar a fonte de uma imagem.
+    Analise a imagem e compare com as fontes locais se houver contexto.
   `;
 
-  // Prompt desenhado para quebrar o viés de confirmação da lista local
   const prompt = `
     Analise a imagem anexada.
-
-    CONTEXTO (Arquivos do Usuário): ${knownFonts.length > 0 ? JSON.stringify(knownFonts) : "Nenhum arquivo enviado."}
-
-    PASSO 1: ANÁLISE VISUAL PURA
-    - Extraia o texto visível.
-    - Identifique traços chave: Serifa, altura-x, contraste, estilo (Script, Sans, etc).
-
-    PASSO 2: AUDITORIA DA LISTA LOCAL
-    - Para cada fonte listada em "CONTEXTO", pergunte: "Esta fonte é IDÊNTICA à da imagem?"
-    - CUIDADO: Se a imagem é "Script" e o usuário tem uma fonte "Script" na lista, NÃO assuma que são a mesma.
-    - Verifique glifos específicos. Se o 'g' ou 'a' ou 'r' for diferente, REJEITE a fonte local.
-    - Se a fonte local for rejeitada, ignore-a completamente.
-
-    PASSO 3: IDENTIFICAÇÃO FINAL
-    - Se houve um match local perfeito (100% idêntico): Retorne o nome local e source="Local".
-    - Se NÃO houve: Identifique a melhor correspondência no mercado global (Google Fonts, Adobe, etc) e defina source="Web".
-
-    PASSO 4: ALTERNATIVAS VISUAIS (Obrigatório)
-    - Liste 4 fontes SIMILARES que existam no **Google Fonts**.
-    - Isso é crucial para que o usuário possa visualizar a comparação na interface.
-
-    FORMATO JSON:
+    CONTEXTO (Fontes do Usuário): ${knownFonts.length > 0 ? JSON.stringify(knownFonts) : "Nenhum arquivo enviado."}
+    
+    Identifique a fonte e sugira 4 similares do Google Fonts.
+    
+    RETORNE APENAS JSON NO FORMATO:
     {
-      "detectedText": "Texto da imagem",
-      "fontName": "Nome da Fonte Identificada",
+      "detectedText": "Texto extraído",
+      "fontName": "Nome da Fonte",
       "source": "Local" ou "Web",
       "category": "Serif" | "Sans Serif" | "Display" | "Handwriting" | "Monospace",
-      "visualStyle": "Ex: 'Traço orgânico de pincel seco, alto contraste'",
+      "visualStyle": "Descrição breve",
       "matchConfidence": "Alta" | "Média" | "Baixa",
-      "description": "Explicação detalhada. Se rejeitou fontes locais, explique a diferença visual encontrada.",
-      "similarFonts": ["Google Font 1", "Google Font 2", "Google Font 3", "Google Font 4"]
+      "description": "Explicação técnica",
+      "similarFonts": ["Fonte 1", "Fonte 2", "Fonte 3", "Fonte 4"]
     }
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: base64Data
-            }
-          },
-          {
-            text: prompt
-          }
+          { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
+          { text: prompt }
         ]
       },
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.1, // Temperatura mínima para máxima precisão e menor alucinação
+        temperature: 0.1,
+        responseMimeType: "application/json"
       }
     });
 
     const textResponse = response.text;
-    
-    if (!textResponse) {
-      throw new Error("Não foi possível obter uma resposta da IA.");
-    }
+    if (!textResponse) throw new Error("Resposta vazia da IA.");
 
-    const cleanedJson = cleanJsonString(textResponse);
-    let parsedData;
-    try {
-        parsedData = JSON.parse(cleanedJson);
-    } catch (e) {
-        console.error("JSON Parse Error:", e);
-        throw new Error("Erro ao interpretar resposta da IA.");
-    }
+    const parsedData = JSON.parse(cleanJsonString(textResponse));
 
     return {
-      fontName: parsedData.fontName || "Fonte Desconhecida",
+      fontName: parsedData.fontName || "Desconhecida",
       detectedText: parsedData.detectedText || "Aa",
       category: parsedData.category || "Display",
       visualStyle: parsedData.visualStyle || "",
@@ -113,6 +75,6 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw error;
+    throw new Error(error.message || "Erro ao conectar com a IA. Verifique sua API Key.");
   }
 };
