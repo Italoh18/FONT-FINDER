@@ -42,3 +42,26 @@ export interface HistoryListProps {
   onUpdate: (id: string, newName: string) => void;
   onUploadFonts: (files: FileList) => void; // Nova prop para upload
 }
+
+// --- Font Creator Types ---
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface Stroke {
+  points: Point[];
+  type: 'freehand' | 'shape' | 'bezier';
+  isClosed?: boolean; // Indica se o path deve ser fechado (para formas)
+  filled?: boolean; // Indica se a forma deve ser preenchida (Paint Bucket)
+  width?: number; // Espessura do traço
+}
+
+export interface GlyphData {
+  char: string;
+  strokes: Stroke[];
+  previewUrl?: string; // Base64 image for fast rendering in grid
+}
+
+export type GlyphMap = Record<string, GlyphData>;
