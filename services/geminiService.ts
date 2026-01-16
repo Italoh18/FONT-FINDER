@@ -48,9 +48,10 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
   `;
 
   try {
-    // Usando gemini-3-flash-preview que tem melhor disponibilidade de cota
+    // Alterado para gemini-2.0-flash-exp para contornar limitações de cota do 2.5
+    // Este modelo experimental costuma ter boa disponibilidade no tier gratuito
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash-exp',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
@@ -86,8 +87,9 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
         throw error;
     }
     
+    // Tratamento específico para erro 429 (Too Many Requests)
     if (error.status === 429 || error.message?.toLowerCase().includes("quota") || error.message?.toLowerCase().includes("limit")) {
-        throw new Error("Limite de cota atingido. Por favor, aguarde alguns segundos e tente novamente. Se o erro persistir, verifique sua conta Google AI Studio.");
+        throw new Error("Cota excedida para o modelo atual. Tente novamente em alguns instantes.");
     }
     
     throw new Error(error.message || "Erro ao processar a imagem.");
