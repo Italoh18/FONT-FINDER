@@ -12,7 +12,6 @@ const cleanJsonString = (str: string): string => {
 };
 
 export const identifyFontFromImage = async (base64Image: string, knownFonts: string[] = []): Promise<FontAnalysis> => {
-  // Obtém a chave do ambiente. No Cloudflare/Vercel, ela deve ser injetada como API_KEY.
   const apiKey = process.env.API_KEY;
 
   if (!apiKey || apiKey === 'undefined' || apiKey === '') {
@@ -49,9 +48,9 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
   `;
 
   try {
-    // Revertido para gemini-2.5-flash-image conforme solicitado pelo usuário
+    // Usando gemini-3-flash-preview que tem melhor disponibilidade de cota
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
@@ -66,7 +65,7 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
     });
 
     const textResponse = response.text;
-    if (!textResponse) throw new Error("A IA não retornou texto.");
+    if (!textResponse) throw new Error("A IA não retornou uma resposta válida.");
 
     const parsedData = JSON.parse(cleanJsonString(textResponse));
 
@@ -87,11 +86,10 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
         throw error;
     }
     
-    // Tratamento amigável para erro de quota (429)
     if (error.status === 429 || error.message?.toLowerCase().includes("quota") || error.message?.toLowerCase().includes("limit")) {
-        throw new Error("A cota gratuita do modelo Gemini foi excedida para este minuto. Por favor, aguarde cerca de 60 segundos e tente novamente.");
+        throw new Error("Limite de cota atingido. Por favor, aguarde alguns segundos e tente novamente. Se o erro persistir, verifique sua conta Google AI Studio.");
     }
     
-    throw new Error(error.message || "Erro de conexão com o servidor Gemini.");
+    throw new Error(error.message || "Erro ao processar a imagem.");
   }
 };

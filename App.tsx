@@ -4,7 +4,7 @@ import { FontResult } from './components/FontResult';
 import { HistoryList } from './components/HistoryList';
 import { identifyFontFromImage } from './services/geminiService';
 import { FontAnalysis, HistoryItem } from './types';
-import { Sparkles, Github, AlertCircle, Terminal } from 'lucide-react';
+import { Sparkles, Github, AlertCircle, Terminal, RefreshCw } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'fontfinder_history';
 
@@ -63,7 +63,7 @@ export default function App() {
       setAnalysis(result);
     } catch (err: any) {
       if (err.message === "API_KEY_MISSING") {
-        setError("Chave de API não detectada no ambiente. Verifique as variáveis de ambiente no painel da Cloudflare.");
+        setError("Chave de API não detectada no ambiente. Verifique as variáveis de ambiente.");
       } else {
         setError(err.message || "Erro ao analisar imagem.");
       }
@@ -196,7 +196,7 @@ export default function App() {
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-white mb-2">Identifique & Gerencie Fontes</h2>
                 <p className="text-slate-400">
-                    Arraste uma imagem para descobrir qual fonte está sendo usada.
+                    Descubra qual fonte está sendo usada em qualquer imagem.
                 </p>
               </div>
 
@@ -206,26 +206,35 @@ export default function App() {
                 <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-100 shadow-lg space-y-4">
                     <div className="flex items-center gap-3 text-red-400 font-bold">
                       <AlertCircle className="w-6 h-6 shrink-0" />
-                      <span className="text-lg">Erro de Configuração</span>
+                      <span className="text-lg">Ops! Algo deu errado</span>
                     </div>
                     <p className="text-sm leading-relaxed">{error}</p>
+                    
+                    {error.includes("cota") && (
+                      <button 
+                        onClick={() => currentImage && handleImageSelected(currentImage)}
+                        className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-bold"
+                      >
+                        <RefreshCw className="w-4 h-4" /> Tentar Novamente
+                      </button>
+                    )}
+
                     {(error.includes("API_KEY") || error.includes("ambiente")) && (
                       <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
                          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
-                           <Terminal className="w-4 h-4" /> Cloudflare Pages Setup
+                           <Terminal className="w-4 h-4" /> Configuração necessária
                          </div>
                          <ol className="text-xs text-slate-400 list-decimal pl-4 space-y-1">
-                           <li>Acesse seu projeto no Cloudflare Pages.</li>
-                           <li>{"Vá em Settings > Environment variables."}</li>
-                           <li>{"Clique em Add variable: Key = API_KEY, Value = (sua chave)."}</li>
-                           <li><strong>Importante:</strong> Após salvar, você DEVE realizar um novo <strong>Deploy</strong> manual para que a variável seja injetada no código.</li>
+                           <li>{"Vá em Settings > Environment variables no seu provedor (Cloudflare/Vercel)."}</li>
+                           <li>{"Adicione a chave API_KEY."}</li>
+                           <li><strong>Importante:</strong> Realize um novo <strong>Deploy</strong> para aplicar as mudanças.</li>
                          </ol>
                       </div>
                     )}
                 </div>
               )}
 
-              {currentImage && !loading && (
+              {currentImage && !loading && !error && (
                 <div className="flex justify-center mb-6">
                     <img src={currentImage} alt="Preview" className="max-h-48 rounded-lg border border-slate-700 shadow-lg" />
                 </div>
