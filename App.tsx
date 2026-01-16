@@ -216,8 +216,8 @@ export default function App() {
                          </div>
                          <ol className="text-xs text-slate-400 list-decimal pl-4 space-y-1">
                            <li>Acesse seu projeto no Cloudflare Pages.</li>
-                           <li>Vá em <strong>Settings</strong> &gt; <strong>Environment variables</strong>.</li>
-                           <li>Clique em <strong>Add variable</strong>: Key = <code>API_KEY</code>, Value = <code>(sua chave)</code>.</li>
+                           <li>{"Vá em Settings > Environment variables."}</li>
+                           <li>{"Clique em Add variable: Key = API_KEY, Value = (sua chave)."}</li>
                            <li><strong>Importante:</strong> Após salvar, você DEVE realizar um novo <strong>Deploy</strong> manual para que a variável seja injetada no código.</li>
                          </ol>
                       </div>

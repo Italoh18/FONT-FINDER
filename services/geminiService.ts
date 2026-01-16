@@ -85,6 +85,7 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
     if (error.message?.includes("API_KEY_MISSING")) {
         throw error;
     }
+    // Caso o erro de quota persista no gemini-2.5-flash-image, sugere-se o uso do gemini-3-flash-preview.
     throw new Error(error.message || "Erro de conexão com o servidor Gemini.");
   }
 };
