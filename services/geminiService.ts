@@ -12,7 +12,7 @@ const cleanJsonString = (str: string): string => {
 };
 
 export const identifyFontFromImage = async (base64Image: string, knownFonts: string[] = []): Promise<FontAnalysis> => {
-  // Obtém a chave do ambiente.
+  // Obtém a chave do ambiente. No Cloudflare/Vercel, ela deve ser injetada como API_KEY.
   const apiKey = process.env.API_KEY;
 
   if (!apiKey || apiKey === 'undefined' || apiKey === '') {
@@ -49,9 +49,9 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
   `;
 
   try {
-    // Migrado para gemini-3-flash-preview para melhor disponibilidade e performance
+    // Revertido para gemini-2.5-flash-image conforme solicitado pelo usuário
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
@@ -86,10 +86,12 @@ export const identifyFontFromImage = async (base64Image: string, knownFonts: str
     if (error.message?.includes("API_KEY_MISSING")) {
         throw error;
     }
-    // Erros 429 agora são tratados com uma mensagem mais clara sugerindo o check-up da quota
-    if (error.status === 429 || error.message?.includes("quota")) {
-        throw new Error("Limite de requisições excedido. Por favor, tente novamente em alguns instantes ou verifique sua fatura no Google Cloud Console.");
+    
+    // Tratamento amigável para erro de quota (429)
+    if (error.status === 429 || error.message?.toLowerCase().includes("quota") || error.message?.toLowerCase().includes("limit")) {
+        throw new Error("A cota gratuita do modelo Gemini foi excedida para este minuto. Por favor, aguarde cerca de 60 segundos e tente novamente.");
     }
+    
     throw new Error(error.message || "Erro de conexão com o servidor Gemini.");
   }
 };
