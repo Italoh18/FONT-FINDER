@@ -63,7 +63,7 @@ export default function App() {
       setAnalysis(result);
     } catch (err: any) {
       if (err.message === "API_KEY_MISSING") {
-        setError("Chave de API não configurada corretamente. Vá no painel da Cloudflare > Settings > Variables, adicione 'API_KEY' e realize um novo Deploy.");
+        setError("Chave de API não detectada no ambiente. Verifique as variáveis de ambiente no painel da Cloudflare.");
       } else {
         setError(err.message || "Erro ao analisar imagem.");
       }
@@ -209,16 +209,16 @@ export default function App() {
                       <span className="text-lg">Erro de Configuração</span>
                     </div>
                     <p className="text-sm leading-relaxed">{error}</p>
-                    {error.includes("API_KEY") && (
+                    {(error.includes("API_KEY") || error.includes("ambiente")) && (
                       <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
                          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
                            <Terminal className="w-4 h-4" /> Cloudflare Pages Setup
                          </div>
                          <ol className="text-xs text-slate-400 list-decimal pl-4 space-y-1">
                            <li>Acesse seu projeto no Cloudflare Pages.</li>
-                           <li>Vá em <strong>Settings</strong> > <strong>Environment variables</strong>.</li>
+                           <li>Vá em <strong>Settings</strong> &gt; <strong>Environment variables</strong>.</li>
                            <li>Clique em <strong>Add variable</strong>: Key = <code>API_KEY</code>, Value = <code>(sua chave)</code>.</li>
-                           <li><strong>Importante:</strong> Realize um novo <strong>Deploy</strong> para que as alterações entrem em vigor.</li>
+                           <li><strong>Importante:</strong> Após salvar, você DEVE realizar um novo <strong>Deploy</strong> manual para que a variável seja injetada no código.</li>
                          </ol>
                       </div>
                     )}
